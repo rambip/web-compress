@@ -1,0 +1,25 @@
+[package]
+name = "web-compress"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+js-sys = "0.3"
+wasm-bindgen = "=0.2.74"
+yew = { git = "https://github.com/yewstack/yew/" }
+gloo-file = "0.2"
+gloo = "0.4"
+#stdweb = "0.4.20"
+#photon-rs = "0.3.1"
+#photon-rs = {git = "https://github.com/silvia-odwyer/photon/"}
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["File", "CanvasRenderingContext2d", "ImageData", "HtmlCanvasElement"]
+
+[dependencies.image]
+version = "0.23.14"
+default-features = false
+features = ["gif", "jpeg", "ico", "png", "pnm", "tga", "tiff", "webp", "bmp", "hdr", "dxt", "dds", "farbfeld"]
