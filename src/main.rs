@@ -220,9 +220,9 @@ impl Component for Model {
                 };
                 html! {
                     <div>
-                        <p> {format!("size = {}", size)} </p>
+                        <p> {format!("size : {}K", size/1000)} </p>
                         <button onclick={ctx.link().callback(prev)}> {"<--"} </button>
-                        <input onchange={ctx.link().callback(qual)} type="range" min="1" max="100" value={q.to_string()} class="slider"/>
+                        <input onchange={ctx.link().callback(qual)} type="range" min="1" max="75" value={q.to_string()} class="slider"/>
                         <button onclick={ctx.link().callback(next)}> {"-->"} </button>
                         <button onclick={ctx.link().callback(move |_| Msg::RequestConvert(q))}> {"convert"} </button>
                         </div>
@@ -236,11 +236,12 @@ impl Component for Model {
                 <p> {"conversion en cours ..."} </p>
             },
             State::Done(_t) => html! {
+                <>
                 <p> {"Voici vos images !"} </p>
+                    <button onclick={ctx.link().callback(|_| Msg::Restart)}>{"Recommencer"}</button>
+                    </>
             },
         };
-
-        //<span><button onclick={ctx.link().callback(|_| Msg::Restart)}>{"Réinitialiser"}</button> </span>
 
         html! {
             <div>

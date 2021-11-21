@@ -2,3 +2,4 @@
 target = "index.html"
 dist = "dist"
 release = true
+public_url = "/web-compress/"

@@ -19,7 +19,8 @@ features = ["File", "CanvasRenderingContext2d", "ImageData", "HtmlCanvasElement"
 [dependencies.image]
 version = "0.23.14"
 default-features = false
-features = ["gif", "jpeg", "ico", "png", "pnm", "tga", "tiff", "webp", "bmp", "hdr", "dxt", "dds", "farbfeld"]
+features = ["gif", "jpeg", "png", "webp", "ico", "bmp"]
+# you can add pnm, tga, tiff,  hdr, dxt, dss, farbfeld
 
 [dependencies.zip]
 version = "0.5.13"

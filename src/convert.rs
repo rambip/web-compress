@@ -19,6 +19,8 @@ pub fn test_display_image(image: &RgbaImage, quality: u8, ctx: &CanvasRenderingC
     JpegEncoder::new_with_quality(&mut jpeg_buf, quality).encode_image(image)
         .expect("can't create jpeg");
 
+    let size_result = jpeg_buf.len();
+
 
     // re-read the jpeg image to an image
     let mut decoder = JpegDecoder::new(Cursor::new(jpeg_buf)).unwrap();
@@ -28,7 +30,7 @@ pub fn test_display_image(image: &RgbaImage, quality: u8, ctx: &CanvasRenderingC
     // display the jpeg image
     super::canvas::draw_image(result.width(), result.height(), &result, ctx);
     
-    result.len()
+    size_result
 }
 
 pub fn read_image(d: &[u8]) -> RgbaImage {
@@ -58,7 +60,18 @@ pub fn convert_and_zip_images(images: &Vec<(String, super::FileData)>, quality: 
                 }
             };
 
-            zip.start_file(name, options)
+            let base_name = {
+                let mut parts : Vec<&str> = name.split('.').into_iter().collect();
+                if parts.len() > 1 {
+                    parts.pop();
+                    parts.concat().to_string()
+                }
+                else {
+                    name.to_string()
+                }
+            };
+
+            zip.start_file(format!("{}.jpg", base_name), options)
                 .unwrap();
 
             zip.write(&jpeg_buf)
