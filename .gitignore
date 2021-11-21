@@ -1,5 +1,5 @@
 /target
 /dist
-/Trunk.toml
-/Cargo.lock
 
+Cargo.lock
+Trunk.toml
