@@ -1,52 +1,61 @@
 use yew::prelude::*;
 
-// use stdweb::unstable::TryInto;
-// use stdweb::web::{ImageData, CanvasRenderingContext2d, document};
-// use stdweb::web::html_element::{CanvasElement, InputElement};
-// use stdweb::js;
-//use wasm_bindgen::JsCast;
-
-use web_sys::{HtmlInputElement, HtmlCanvasElement};
+use web_sys::{HtmlInputElement, CanvasRenderingContext2d};
 
 // https://rustwasm.github.io/book/game-of-life/implementing.html
 
-//use gloo_file::callbacks::FileReader;
-use gloo_file::File;
+use gloo_file::{File, Blob};
 use gloo::timers::callback::Timeout;
+
+use image::RgbaImage;
 
 mod canvas;
 mod convert;
+mod download;
 
 
 /* example for file upload:
 https://github.com/yewstack/yew/blob/master/examples/file_upload/src/main.rs
 */
 
-type Data = Vec<u8>;
-
 pub enum Msg {
-    Convert,
-    ReadingDone(String, Data),
-    RequestPreview(usize, u32),
-    RunPreview(usize, u32),
+    Restart,
     Files(Vec<File>),
+    ReadingDone(String, FileData),
+    
+    RequestPreview(usize, u8),
+    RunPreview(usize, u8),
+
+    RequestConvert(u8),
+    RunConvert(u8),
+
+    RequestDownload,
+    RunDownload,
 }
 
 #[derive(Debug)]
 pub enum State {
     WaitingForSelection,
     ReadingImages(Vec<gloo_file::callbacks::FileReader>),
-    Preview(usize, u32),
-    Done,
+    CreatingPreview(usize, u8),
+    ShowingPreview(usize, u8, usize),
+    Converting,
+    WaitingForDownload,
+    Done(Option<gloo_file::callbacks::FileReader>),
 }
 
+pub enum FileData {
+    Encoded(Vec<u8>),
+    Decoded(RgbaImage),
+}
 
 pub struct Model {
     state: State,
-    images: Vec<(String, Data)>,
-    canvas: Option<HtmlCanvasElement>,
+    images: Vec<(String, FileData)>,
+    canvas_node: NodeRef,
+    canvas_ctx: Option<CanvasRenderingContext2d>,
     timeout: Option<Timeout>,
-    converting: bool,
+    blob: Option<gloo_file::Blob>,
 }
 
 /// ask user to select files
@@ -73,9 +82,16 @@ impl Component for Model {
         Model {
             state : State::WaitingForSelection,
             images: vec![],
-            canvas: None,
             timeout: None,
-            converting: false,
+            canvas_node: NodeRef::default(),
+            canvas_ctx: None,
+            blob: None,
+        }
+    }
+
+    fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            self.canvas_ctx = Some(canvas::init_canvas(&self.canvas_node));
         }
     }
 
@@ -92,7 +108,7 @@ impl Component for Model {
                     let task = gloo_file::callbacks::read_as_bytes(&file, move |res| {
                         link.send_message(Msg::ReadingDone(
                                 file_name,
-                                res.expect("failed to read file"),
+                                FileData::Encoded(res.expect("failed to read file")),
                         ))
                     });
                     readers.push(task);
@@ -110,103 +126,142 @@ impl Component for Model {
                 }
             }
             Msg::RequestPreview(selected, q) => {
-                // create canvas, display message and send message to launch preview
-                let canvas = self.canvas.clone().unwrap_or_else(
-                    || canvas::init_canvas("canvas"));
-                
+                self.state = State::CreatingPreview(selected, q);
 
-                let canvas_ctx = canvas::get_ctx(&canvas);
-                canvas_ctx.clear_rect(0.0, 0.0, 1500.0, 15000.0);
-
-                self.canvas = Some(canvas);
-
-                let t = {
-                    let link = ctx.link().clone();
-                    Timeout::new(50, move || link.send_message(Msg::RunPreview(selected, q)))
-                };
-
-                self.timeout = Some(t);
-                self.converting = true;
+                self.send_message_timeout(ctx, Msg::RunPreview(selected, q));
                 }
 
             Msg::RunPreview(selected, quality) => {
+                // TODO: fix with https://ricardomartins.cc/2016/06/08/interior-mutability
                 // preview a file
-                self.state = State::Preview(selected, quality);
-                convert::test_display_image(&self.images[selected].1, quality, self.canvas.as_ref().expect("no canvas !!!"));
-                self.converting = false;
+                match &self.images[selected].1 {
+                    FileData::Encoded(im) => {
+                        let decoded = convert::read_image(&im);
+                        self.images[selected].1 = FileData::Decoded(decoded);
+                    },
+                    FileData::Decoded(_) => () 
+                };
+
+                if let FileData::Decoded(d) = &self.images[selected].1 {
+                    let new_size = convert::test_display_image(&d, quality, self.canvas_ctx.as_ref().unwrap());
+                    self.state = State::ShowingPreview(selected, quality, new_size);
+                }
             }
-            Msg::Convert => {
-                // convert all the images and zip them
+            Msg::RequestConvert(quality) => {
+                self.state = State::Converting;
+
+                canvas::clear_canvas(self.canvas_ctx.as_ref().unwrap());
+                self.send_message_timeout(ctx, Msg::RunConvert(quality));
             },
+
+            Msg::RunConvert(quality) => {
+                let result = convert::convert_and_zip_images(&self.images, quality);
+                let blob = Blob::new_with_options(result.as_slice(), Some("zip"));
+                self.blob = Some(blob);
+                self.state = State::WaitingForDownload;
+            }
+
+            Msg::Restart => {
+                self.state = State::WaitingForSelection;
+                self.images.clear();
+                self.timeout = None;
+            },
+            Msg::RequestDownload => {
+                self.state = State::Done(None);
+
+                self.send_message_timeout(ctx, Msg::RunDownload);
+            },
+            Msg::RunDownload => {
+                let task = gloo_file::callbacks::read_as_data_url(&self.blob.as_ref().unwrap(),
+                |x| download::download(&x.unwrap(), "images.zip"));
+                self.state = State::Done(Some(task));
+            }
         }
         true
     }
+
 
     fn changed(&mut self, _ctx: &Context<Self>) -> bool {
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let ui_top = match self.state {
-            State::WaitingForSelection => {
-                html! {<>
-                    <h3>{ "Choisissez vos fichiers: " }</h3>
+        // let image_names: Html = self.images.iter().map(|(name, _data)| html! {
+        //     <pre> {name} </pre>
+        // }
+        // ).collect();
+        
+        let ui = match &self.state {
+            State::WaitingForSelection => html!{
+                <>
+                    <div>
+                        <h3>{ "Choisissez vos fichiers: " }</h3></div>
                         <div>
                         // TODO: file input style
                         //<label class="button" for="upload">{"Choisissez vos fichiers"}</label>
                         <input type="file" multiple=true onchange={ctx.link().callback(get_files) }/>
                         </div>
                         </>
-                }
-            }
-            State::ReadingImages(_) => html! {<h3> {"lecture des image en cours ..."} </h3>},
-            State::Preview(_, _) => html! {},
-            State::Done => html! {},
-        };
+            },
+            State::ReadingImages(_) => html! {
+                    <h3> {"lecture des image en cours ..."} </h3>
+            },
+            State::CreatingPreview(_, _) => html!{
+                <center> <h1 style="color:red"> {". . ."} </h1> </center>
+            },
 
-        let ui_bottom = match self.state {
-            State::Preview(_, _) if self.converting => 
-                html!{<center> <h1 style="color:red"> {". . ."} </h1> </center>},
-
-            State::Preview(selected, q) => {
+            &State::ShowingPreview(selected, q, size) => {
                 let n_images = self.images.len();
                 let next = move |_| Msg::RequestPreview((selected+1)%n_images, q);
                 let prev = move |_| Msg::RequestPreview((selected-1+n_images)%n_images, q);
                 let qual = move |e: Event| {
                     let input: HtmlInputElement = e.target_unchecked_into();
-                    Msg::RequestPreview(selected, input.value_as_number() as u32)
+                    Msg::RequestPreview(selected, input.value_as_number() as u8)
                 };
                 html! {
                     <div>
+                        <p> {format!("size = {}", size)} </p>
                         <button onclick={ctx.link().callback(prev)}> {"<--"} </button>
                         <input onchange={ctx.link().callback(qual)} type="range" min="1" max="100" value={q.to_string()} class="slider"/>
                         <button onclick={ctx.link().callback(next)}> {"-->"} </button>
-                        <button onclick={ctx.link().callback(|_| Msg::Convert)}> {"convert"} </button>
+                        <button onclick={ctx.link().callback(move |_| Msg::RequestConvert(q))}> {"convert"} </button>
                         </div>
+
                 }
             },
-            _ => html!{},
+            State::WaitingForDownload => html! {
+                <button onclick={ctx.link().callback(move |_| Msg::RequestDownload)}> {"télécharger"} </button>
+            },
+            State::Converting => html ! {
+                <p> {"conversion en cours ..."} </p>
+            },
+            State::Done(_t) => html! {
+                <p> {"Voici vos images !"} </p>
+            },
         };
 
-        // let image_names: Html = self.images.iter().map(|(name, _data)| html! {
-        //     <pre> {name} </pre>
-        // }
-        // ).collect();
-        
-        // TODO: images mini preview ?
+        //<span><button onclick={ctx.link().callback(|_| Msg::Restart)}>{"Réinitialiser"}</button> </span>
 
         html! {
             <div>
-                <h2> {"Convertisseur d'images"} </h2>
-                {ui_top}
-                <canvas id="canvas" ></canvas>
-                {ui_bottom}
+                <h2> {"Convertisseur d'images"} </h2> 
+                {ui}
+                <canvas id="canvas" ref={self.canvas_node.clone()} ></canvas>
                 //{image_names}
-                </div>
+            </div>
         }
     }
 }
 
+impl Model {
+    fn send_message_timeout(&mut self, ctx: &Context<Self>, msg: Msg){
+        canvas::clear_canvas(self.canvas_ctx.as_ref().unwrap());
+        self.timeout = Some( {
+            let link = ctx.link().clone();
+            Timeout::new(50, move || link.send_message(msg))
+        });
+    }
+}
 
 fn main() {
     yew::start_app::<Model>();
