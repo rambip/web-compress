@@ -1,4 +1,5 @@
 use yew::prelude::*;
+use std::rc::Rc;
 
 use web_sys::{HtmlInputElement, CanvasRenderingContext2d};
 
@@ -14,10 +15,6 @@ mod convert;
 mod download;
 
 
-/* example for file upload:
-https://github.com/yewstack/yew/blob/master/examples/file_upload/src/main.rs
-*/
-
 pub enum Msg {
     Restart,
     Files(Vec<File>),
@@ -29,8 +26,7 @@ pub enum Msg {
     RequestConvert(u8),
     RunConvert(u8),
 
-    RequestDownload,
-    RunDownload,
+    Download(Rc<Blob>),
 }
 
 #[derive(Debug)]
@@ -40,9 +36,10 @@ pub enum State {
     CreatingPreview(usize, u8),
     ShowingPreview(usize, u8, usize),
     Converting,
-    WaitingForDownload,
-    Done(Option<gloo_file::callbacks::FileReader>),
+    WaitingForDownload(Rc<Blob>),
+    Done(gloo_file::callbacks::FileReader),
 }
+
 
 pub enum FileData {
     Encoded(Vec<u8>),
@@ -55,24 +52,8 @@ pub struct Model {
     canvas_node: NodeRef,
     canvas_ctx: Option<CanvasRenderingContext2d>,
     timeout: Option<Timeout>,
-    blob: Option<gloo_file::Blob>,
 }
 
-/// ask user to select files
-fn get_files(e: Event) -> Msg {
-    let mut result = Vec::new();
-    let input: HtmlInputElement = e.target_unchecked_into();
-
-    if let Some(files) = input.files() {
-        let files = js_sys::try_iter(&files)
-            .unwrap()
-            .unwrap()
-            .map(|v| web_sys::File::from(v.unwrap()))
-            .map(File::from);
-        result.extend(files);
-    }
-    Msg::Files(result)
-}
 
 impl Component for Model {
     type Message = Msg;
@@ -85,7 +66,6 @@ impl Component for Model {
             timeout: None,
             canvas_node: NodeRef::default(),
             canvas_ctx: None,
-            blob: None,
         }
     }
 
@@ -157,8 +137,7 @@ impl Component for Model {
             Msg::RunConvert(quality) => {
                 let result = convert::convert_and_zip_images(&self.images, quality);
                 let blob = Blob::new_with_options(result.as_slice(), Some("zip"));
-                self.blob = Some(blob);
-                self.state = State::WaitingForDownload;
+                self.state = State::WaitingForDownload(Rc::new(blob));
             }
 
             Msg::Restart => {
@@ -166,16 +145,12 @@ impl Component for Model {
                 self.images.clear();
                 self.timeout = None;
             },
-            Msg::RequestDownload => {
-                self.state = State::Done(None);
-
-                self.send_message_timeout(ctx, Msg::RunDownload);
+            Msg::Download(blob_ref) => {
+                let task = gloo_file::callbacks::read_as_data_url(
+                    &blob_ref,
+                    |x| download::download(&x.unwrap(), "images.zip"));
+                self.state = State::Done(task);
             },
-            Msg::RunDownload => {
-                let task = gloo_file::callbacks::read_as_data_url(&self.blob.as_ref().unwrap(),
-                |x| download::download(&x.unwrap(), "images.zip"));
-                self.state = State::Done(Some(task));
-            }
         }
         true
     }
@@ -186,11 +161,6 @@ impl Component for Model {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        // let image_names: Html = self.images.iter().map(|(name, _data)| html! {
-        //     <pre> {name} </pre>
-        // }
-        // ).collect();
-        
         let ui = match &self.state {
             State::WaitingForSelection => html!{
                 <>
@@ -211,31 +181,36 @@ impl Component for Model {
             },
 
             &State::ShowingPreview(selected, q, size) => {
+                let link = ctx.link();
                 let n_images = self.images.len();
                 let next = move |_| Msg::RequestPreview((selected+1)%n_images, q);
                 let prev = move |_| Msg::RequestPreview((selected-1+n_images)%n_images, q);
-                let qual = move |e: Event| {
-                    let input: HtmlInputElement = e.target_unchecked_into();
-                    Msg::RequestPreview(selected, input.value_as_number() as u8)
-                };
+                let qual = move |e: Event| Msg::RequestPreview(
+                    selected, 
+                    e.target_unchecked_into::<HtmlInputElement>().value_as_number() as u8);
+
                 html! {
                     <div>
-                        <p> {format!("size : {}K", size/1000)} </p>
-                        <button onclick={ctx.link().callback(prev)}> {"<--"} </button>
-                        <input onchange={ctx.link().callback(qual)} type="range" min="1" max="75" value={q.to_string()} class="slider"/>
-                        <button onclick={ctx.link().callback(next)}> {"-->"} </button>
-                        <button onclick={ctx.link().callback(move |_| Msg::RequestConvert(q))}> {"convert"} </button>
+                        <p> {format!("taille :  {} Ko", size/1000)} </p>
+                        <button onclick={link.callback(prev)}> {"<--"} </button>
+                        <input onchange={link.callback(qual)} type="range" min="1" max="75" value={q.to_string()} class="slider"/>
+                        <button onclick={link.callback(next)}> {"-->"} </button>
+                        <button onclick={link.callback(move |_| Msg::RequestConvert(q))}> {"convertir"} </button>
                         </div>
 
                 }
             },
-            State::WaitingForDownload => html! {
-                <button onclick={ctx.link().callback(move |_| Msg::RequestDownload)}> {"télécharger"} </button>
-            },
+            State::WaitingForDownload(blob_ref) => html! {
+                <button onclick={ctx.link().callback_once({
+                    let b = blob_ref.clone();
+                    move |_| Msg::Download(b)
+                })}> {"télécharger"} </button>
+            }
+            ,
             State::Converting => html ! {
                 <p> {"conversion en cours ..."} </p>
             },
-            State::Done(_t) => html! {
+            State::Done(_) => html! {
                 <>
                 <p> {"Voici vos images !"} </p>
                     <button onclick={ctx.link().callback(|_| Msg::Restart)}>{"Recommencer"}</button>
@@ -248,7 +223,6 @@ impl Component for Model {
                 <h2> {"Convertisseur d'images"} </h2> 
                 {ui}
                 <canvas id="canvas" ref={self.canvas_node.clone()} ></canvas>
-                //{image_names}
             </div>
         }
     }
@@ -263,6 +237,23 @@ impl Model {
         });
     }
 }
+
+/// ask user to select files
+fn get_files(e: Event) -> Msg {
+    let mut result = Vec::new();
+    let input: HtmlInputElement = e.target_unchecked_into();
+
+    if let Some(files) = input.files() {
+        let files = js_sys::try_iter(&files)
+            .unwrap()
+            .unwrap()
+            .map(|v| web_sys::File::from(v.unwrap()))
+            .map(File::from);
+        result.extend(files);
+    }
+    Msg::Files(result)
+}
+
 
 fn main() {
     yew::start_app::<Model>();
