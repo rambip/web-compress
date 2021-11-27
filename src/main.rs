@@ -163,21 +163,16 @@ impl Component for Model {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let ui = match &self.state {
             State::WaitingForSelection => html!{
-                <>
-                    <div>
-                        <h3>{ "Choisissez vos fichiers: " }</h3></div>
-                        <div>
-                        // TODO: file input style
-                        //<label class="button" for="upload">{"Choisissez vos fichiers"}</label>
-                        <input type="file" multiple=true onchange={ctx.link().callback(get_files) }/>
-                        </div>
-                        </>
+                <div class="vert-menu">
+                    <label class="button" for="upload">{"Choisissez vos fichiers"}</label>
+                    <input id="upload" type="file" multiple=true onchange={ctx.link().callback(get_files) }/>
+                </div>
             },
             State::ReadingImages(_) => html! {
-                    <h3> {"lecture des image en cours ..."} </h3>
+                <h3> {"lecture des image en cours ..."} </h3>
             },
             State::CreatingPreview(_, _) => html!{
-                <center> <h1 style="color:red"> {". . ."} </h1> </center>
+                <center> <h1 style="color:red; font-size=4ex"> {". . ."} </h1> </center>
             },
 
             &State::ShowingPreview(selected, q, size) => {
@@ -190,13 +185,15 @@ impl Component for Model {
                     e.target_unchecked_into::<HtmlInputElement>().value_as_number() as u8);
 
                 html! {
-                    <div>
+                    <>
                         <p> {format!("taille :  {} Ko", size/1000)} </p>
+                        <div class="vert-menu">
                         <button onclick={link.callback(prev)}> {"<--"} </button>
                         <input onchange={link.callback(qual)} type="range" min="1" max="75" value={q.to_string()} class="slider"/>
                         <button onclick={link.callback(next)}> {"-->"} </button>
                         <button onclick={link.callback(move |_| Msg::RequestConvert(q))}> {"convertir"} </button>
                         </div>
+                        </>
 
                 }
             },
