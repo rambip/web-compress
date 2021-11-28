@@ -10,7 +10,7 @@
     targets = [ "wasm32-unknown-unknown" ];
     extensions = ["rust-src" "rust-analysis"];
   });
-trunk = with pkgs;
+recent_trunk = with pkgs;
 rustPlatform.buildRustPackage rec {
   pname = "trunk";
   version = "0.14.0";
@@ -41,10 +41,10 @@ rustPlatform.buildRustPackage rec {
 };
 in
   with pkgs;
-  stdenv.mkDerivation {
-    name = "rust-env";
+  mkShell {
+    #name = "rust-env";
     buildInputs = [
-      trunk
+      recent_trunk
       rust
       wasm
     ];
