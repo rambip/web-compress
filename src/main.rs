@@ -19,7 +19,7 @@ pub enum Msg {
     Restart,
     Files(Vec<File>),
     ReadingDone(String, FileData),
-    
+
     RequestPreview(usize, u8),
     RunPreview(usize, u8),
 
@@ -44,6 +44,25 @@ pub enum State {
 pub enum FileData {
     Encoded(Vec<u8>),
     Decoded(RgbaImage),
+}
+
+impl FileData {
+    // get the decoded image from the file.
+    // If it is encoded, first convert it, store the result and return a reference
+    pub fn get_decoded(&mut self) -> &RgbaImage {
+        match self {
+            FileData::Encoded(im) => {
+                let decoded = convert::read_image(&im);
+                *self= FileData::Decoded(decoded);
+            },
+            FileData::Decoded(_) => () 
+        };
+
+        match self {
+            FileData::Decoded(im) => im,
+            FileData::Encoded(_) => unreachable!(),
+        }
+    }
 }
 
 pub struct Model {
@@ -95,8 +114,9 @@ impl Component for Model {
                 }
                 self.state = State::ReadingImages(readers);
             }
+
+            // message received when a file is red
             Msg::ReadingDone(name, result) => {
-                // message received when a file is red
                 if let State::ReadingImages(tasks) = &self.state {
                     // add the data to the list
                     self.images.push((name, result));
@@ -105,60 +125,54 @@ impl Component for Model {
                     }
                 }
             }
+
+            // when all the images are red and each time the user clicks "next image"
             Msg::RequestPreview(selected, q) => {
                 self.state = State::CreatingPreview(selected, q);
-
                 self.send_message_timeout(ctx, Msg::RunPreview(selected, q));
-                }
-
-            Msg::RunPreview(selected, quality) => {
-                // TODO: fix with https://ricardomartins.cc/2016/06/08/interior-mutability
-                // preview a file
-                match &self.images[selected].1 {
-                    FileData::Encoded(im) => {
-                        let decoded = convert::read_image(&im);
-                        self.images[selected].1 = FileData::Decoded(decoded);
-                    },
-                    FileData::Decoded(_) => () 
-                };
-
-                if let FileData::Decoded(d) = &self.images[selected].1 {
-                    let new_size = convert::test_display_image(&d, quality, self.canvas_ctx.as_ref().unwrap());
-                    self.state = State::ShowingPreview(selected, quality, new_size);
-                }
             }
+
+            // read an image and display it with the selected settings
+            Msg::RunPreview(selected, quality) => {
+                let new_size = convert::test_display_image(
+                    self.images[selected].1.get_decoded(),
+                    quality,
+                    self.canvas_ctx.as_ref().unwrap()
+                );
+
+                self.state = State::ShowingPreview(selected, quality, new_size);
+            }
+
+            // when the use clicks on "convert"
             Msg::RequestConvert(quality) => {
                 self.state = State::Converting;
-
-                canvas::clear_canvas(self.canvas_ctx.as_ref().unwrap());
                 self.send_message_timeout(ctx, Msg::RunConvert(quality));
             },
 
+            // converts all the images and put them in a blob
             Msg::RunConvert(quality) => {
                 let result = convert::convert_and_zip_images(&self.images, quality);
                 let blob = Blob::new_with_options(result.as_slice(), Some("zip"));
                 self.state = State::WaitingForDownload(Rc::new(blob));
             }
 
-            Msg::Restart => {
-                self.state = State::WaitingForSelection;
-                self.images.clear();
-                self.timeout = None;
-            },
+            // download button
             Msg::Download(blob_ref) => {
                 let task = gloo_file::callbacks::read_as_data_url(
                     &blob_ref,
                     |x| download::download(&x.unwrap(), "images.zip"));
                 self.state = State::Done(task);
             },
+
+            Msg::Restart => {
+                self.state = State::WaitingForSelection;
+                self.images.clear();
+                self.timeout = None;
+            },
         }
         true
     }
 
-
-    fn changed(&mut self, _ctx: &Context<Self>) -> bool {
-        true
-    }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let ui = match &self.state {
@@ -166,7 +180,7 @@ impl Component for Model {
                 <div class="vert-menu">
                     <label class="button" for="upload">{"Choisissez vos fichiers"}</label>
                     <input id="upload" type="file" multiple=true onchange={ctx.link().callback(get_files) }/>
-                </div>
+                    </div>
             },
             State::ReadingImages(_) => html! {
                 <h3> {"lecture des image en cours ..."} </h3>
@@ -209,7 +223,7 @@ impl Component for Model {
             },
             State::Done(_) => html! {
                 <>
-                <p> {"Voici vos images !"} </p>
+                    <p> {"Voici vos images !"} </p>
                     <button onclick={ctx.link().callback(|_| Msg::Restart)}>{"Recommencer"}</button>
                     </>
             },
@@ -219,8 +233,8 @@ impl Component for Model {
             <div>
                 <h2> {"Convertisseur d'images"} </h2> 
                 {ui}
-                <canvas id="canvas" ref={self.canvas_node.clone()} ></canvas>
-            </div>
+            <canvas id="canvas" ref={self.canvas_node.clone()} ></canvas>
+                </div>
         }
     }
 }
