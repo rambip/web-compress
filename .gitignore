@@ -1,5 +1,4 @@
 /target
-/dist
+/converter
 
 Cargo.lock
-Trunk.toml
