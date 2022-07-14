@@ -1,3 +1,8 @@
+// fix recursion bug for macros
+// see https://github.com/yewstack/yew/issues/513
+#![recursion_limit = "256"]
+
+
 use yew::prelude::*;
 use std::rc::Rc;
 
@@ -199,15 +204,15 @@ impl Component for Model {
                     e.target_unchecked_into::<HtmlInputElement>().value_as_number() as u8);
 
                 html! {
-                    <>
+                    <div>
                         <p> {format!("taille :  {} Ko", size/1000)} </p>
                         <div class="vert-menu">
-                        <button onclick={link.callback(prev)}> {"<--"} </button>
-                        <input onchange={link.callback(qual)} type="range" min="1" max="75" value={q.to_string()} class="slider"/>
-                        <button onclick={link.callback(next)}> {"-->"} </button>
-                        <button onclick={link.callback(move |_| Msg::RequestConvert(q))}> {"convertir"} </button>
+                            <button onclick={link.callback(prev)}> {"<--"} </button>
+                            <input onchange={link.callback(qual)} type="range" min="1" max="75" value={q.to_string()} class="slider"/>
+                            <button onclick={link.callback(next)}> {"-->"} </button>
+                            <button onclick={link.callback(move |_| Msg::RequestConvert(q))}> {"convertir"} </button>
                         </div>
-                        </>
+                    </div>
 
                 }
             },
@@ -222,10 +227,10 @@ impl Component for Model {
                 <p> {"conversion en cours ..."} </p>
             },
             State::Done(_) => html! {
-                <>
+                <div>
                     <p> {"Voici vos images !"} </p>
                     <button onclick={ctx.link().callback(|_| Msg::Restart)}>{"Recommencer"}</button>
-                    </>
+                </div>
             },
         };
 

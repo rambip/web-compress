@@ -1,5 +1,5 @@
 [build]
 target = "index.html"
-dist = "converter"
+dist = "site"
 release = true
 public_url = "./"

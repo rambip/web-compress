@@ -1,0 +1,8 @@
+name: Trunk builder
+description: build with trunk
+
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - build
