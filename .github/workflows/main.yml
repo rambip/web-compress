@@ -34,7 +34,7 @@ jobs:
           # An explicit key for restoring and saving the cache
           key: ${{ hashFiles('Cargo.toml') }}
       
-      - uses: ./action.yml
+      - uses: ./
           
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
