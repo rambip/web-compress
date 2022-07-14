@@ -1,6 +1,6 @@
 // fix recursion bug for macros
 // see https://github.com/yewstack/yew/issues/513
-#![recursion_limit = "256"]
+#![recursion_limit = "128"]
 
 
 use yew::prelude::*;
