@@ -2,13 +2,8 @@
 
 echo "home is $HOME"
 
-cp -r /root $HOME
-
-cd /root
-ls -la
-
-cd $HOME
-ls -la
+cp -r /root/.rustup $HOME/.rustup
+cp -r /root/.cargo $HOME/.cargo
 
 rustup toolchain list
 
