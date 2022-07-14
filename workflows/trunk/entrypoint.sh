@@ -1,7 +1,7 @@
 #!/bin/sh
 
 
-export RUSTUP_HOME=/root
+export RUSTUP_HOME=/root/.rustup
 
 rustup toolchain list
 
