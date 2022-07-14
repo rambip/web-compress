@@ -1,9 +1,10 @@
 #!/bin/sh
 
-echo "home is $HOME"
+export HOME=/root
 
-cp -r /root/.rustup $HOME/.rustup
-cp -r /root/.cargo $HOME/.cargo
+# copy the cached directory from the github vm to the container
+cp -r $HOME/.cargo/registry $HOME/.cargo
+cp -r $HOME/.cache $HOME/.cache
 
 rustup toolchain list
 
