@@ -29,12 +29,12 @@ jobs:
           # A list of files, directories, and wildcard patterns to cache and restore
           path: |
             ~/.cache 
-            ~/.cargo/registry
+            ~/.cargo
             
           # An explicit key for restoring and saving the cache
           key: ${{ hashFiles('Cargo.toml') }}
       
-      - uses: ./
+      - uses: ./workflows/trunk
           
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
