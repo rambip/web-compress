@@ -28,11 +28,15 @@ jobs:
         with:
           # A list of files, directories, and wildcard patterns to cache and restore
           path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
             ~/.cache 
-            ~/.cargo
+            target
             
           # An explicit key for restoring and saving the cache
-          key: ${{ hashFiles('Cargo.toml') }}
+          key: ${{runner.os}}-cargo-{{ hashFiles('Cargo.toml') }}
       
       - uses: ./workflows/trunk
           
