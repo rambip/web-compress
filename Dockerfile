@@ -10,4 +10,4 @@ RUN ls -la $HOME
 
 RUN cargo install --list
 
-ENTRYPOINT ["/root/.cargo/bin/trunk"]
+ENTRYPOINT ["/usr/bin/env"]
