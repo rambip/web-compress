@@ -29,7 +29,7 @@ jobs:
           # A list of files, directories, and wildcard patterns to cache and restore
           path: |
             ~/.cache 
-            ~/.cargo 
+            ~/.cargo/registry
             
           # An explicit key for restoring and saving the cache
           key: ${{ hashFiles('Cargo.toml') }}
