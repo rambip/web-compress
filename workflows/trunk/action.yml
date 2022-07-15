@@ -4,5 +4,8 @@ description: build with trunk
 runs:
   using: docker
   image: Dockerfile
+  env: 
+    CACHE: /github/workspace/trunk_cache
+    PROJECT: /github/workspace/
   args:
   - build

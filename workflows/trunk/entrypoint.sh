@@ -1,11 +1,22 @@
 #!/bin/sh
 
-export RUSTUP_HOME=/root/.rustup
+to_cache="
+.cargo/registry/index
+.cargo/registry/cache
+.cargo/git
+.cargo/.crates.toml
+.cargo/.crates2.json
+.cache
+"
 
-du -h $HOME/.cache
-du -h $HOME/.cargo
+for dir in $to_cache
+do
+    mkdir -p $CACHE/$dir
+    rm -rf $HOME/$dir
+    ln -s $CACHE/$dir $HOME/$dir
+done
+
+cd $PROJECT
+export CARGO_TARGET_DIR=$CACHE/target
 
 /root/.cargo/bin/trunk $@
-
-du -h $HOME/.cache
-du -h $HOME/.cargo
