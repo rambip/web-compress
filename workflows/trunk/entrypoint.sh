@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export HOME=/root
+
 to_cache="
 .cargo/registry/index
 .cargo/registry/cache
