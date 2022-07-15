@@ -327,7 +327,7 @@ async function load(module, imports) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('web-compress-5ba105c0d4ba4c77_bg.wasm', import.meta.url);
+        input = new URL('web-compress-c8968d61cf513bf8_bg.wasm', import.meta.url);
     }
     const imports = {};
     imports.wbg = {};
