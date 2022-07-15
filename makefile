@@ -9,7 +9,7 @@ container: workflows
 
 serve:
 	docker run \
-		-v ./:/project:ro \
+		-v ./:/project:z \
 	    -v cache:/cache \
 		-p 127.0.0.1:8080:8080 \
 		trunk:latest serve --public-url=/ --address=0.0.0.0
