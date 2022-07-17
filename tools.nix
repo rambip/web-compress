@@ -1,17 +1,17 @@
 # to get the exact rust version I want, with wasm enabled
-let rust-overlay = (import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz")); in
+let rust-overlay = (import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz"));
 
-let change-rust-toolchain = self: super:
+    change-rust-toolchain = self: super:
 rec {
     rust-custom = self.rust-bin.stable."${super.rustc.version}".minimal.override {
         targets = ["wasm32-unknown-unknown"];
     };
     rustc = rust-custom;
     cargo = rust-custom;
-}; in
+};
 
 # custom version of wasm-bindgen
-let change-wasm-bindgen = self: super:
+    change-wasm-bindgen = self: super:
 rec {
 # best build-tool for rust packages
     naersk = super.callPackage (import (builtins.fetchTarball "https://github.com/nix-community/naersk/archive/master.tar.gz")) {};
@@ -24,7 +24,9 @@ rec {
         buildInputs = [super.openssl];
         nativeBuildInputs = [ super.pkg-config ];
     };
-}; in
+};
+
+in
 
 import <nixpkgs> {overlays=[
     rust-overlay
