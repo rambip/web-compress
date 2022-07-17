@@ -1,4 +1,5 @@
 /target
 /site
+/result
 
 Cargo.lock
