@@ -4,9 +4,6 @@ stdenv.mkDerivation {
     name = "web-compress";
     src = ./.;
     buildInputs = [wasm-bindgen-cli trunk binaryen cargo];
-    configurePhase = ''
-    cargo vendor | 
-    ''
     buildPhase = ''
     trunk build
     '';
