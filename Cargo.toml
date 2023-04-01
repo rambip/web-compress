@@ -1,0 +1,28 @@
+[package]
+name = "web-compress"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+js-sys = "0.3"
+wasm-bindgen = "=0.2.78"
+wasm-logger = "0.2"
+yew = "0.19"
+gloo-file = "0.2"
+gloo = "0.4"
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["File", "CanvasRenderingContext2d", "ImageData", "HtmlCanvasElement", "HtmlAnchorElement"]
+
+[dependencies.image]
+version = "0.23.14"
+default-features = false
+features = ["gif", "jpeg", "png", "webp", "ico", "bmp"]
+# you can add pnm, tga, tiff,  hdr, dxt, dss, farbfeld
+
+[dependencies.zip]
+version = "0.5.13"
+default-features = false
