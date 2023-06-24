@@ -1,22 +1,18 @@
 {
     description = "webapp to compress jpeg in your browser";
     inputs.wasm-tooling.url = github:rambip/wasm-tooling;
+    inputs.flake-utils.url = github:numtide/flake-utils;
 
-    outputs = {self, nixpkgs, wasm-tooling}: {
-        defaultPackage.x86_64-linux = 
-            let pkgs = import nixpkgs {system = "x86_64-linux";};
-                tooling = pkgs.callPackage wasm-tooling {};
+    outputs = {self, nixpkgs, flake-utils, wasm-tooling}: with flake-utils.lib; 
+        eachSystem [system.x86_64-linux system.x86_64-darwin] (system:
+            let rust-tooling = wasm-tooling.lib."${system}".rust;
             in
-            tooling.rust.buildWithTrunk {
-                src = ./.;
-                fixRelativeUrl = true;
-            };
-        devShell.x86_64-linux = 
-            let pkgs = import nixpkgs {system = "x86_64-linux";};
-                tooling = pkgs.callPackage wasm-tooling {};
-            in
-            tooling.rust.devShell {
-                src = ./.;
-            } ;
-    };
+            {
+                packages.default = rust-tooling.buildWithTrunk {
+                    src = ./.;
+                    fixRelativeUrl = true;
+                };
+                devShells.default = rust-tooling.makeDevShell {src=./.;};
+            }
+        );
 }
